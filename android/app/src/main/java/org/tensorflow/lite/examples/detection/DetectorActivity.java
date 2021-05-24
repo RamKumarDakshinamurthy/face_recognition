@@ -18,6 +18,8 @@ package org.tensorflow.lite.examples.detection;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
 import android.graphics.Canvas;
@@ -42,6 +44,8 @@ import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.face.Face;
 import com.google.mlkit.vision.face.FaceDetection;
@@ -49,8 +53,12 @@ import com.google.mlkit.vision.face.FaceDetector;
 import com.google.mlkit.vision.face.FaceDetectorOptions;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+
 import org.tensorflow.lite.examples.detection.customview.OverlayView;
 import org.tensorflow.lite.examples.detection.customview.OverlayView.DrawCallback;
 import org.tensorflow.lite.examples.detection.env.BorderedText;
@@ -59,6 +67,7 @@ import org.tensorflow.lite.examples.detection.env.Logger;
 import org.tensorflow.lite.examples.detection.tflite.SimilarityClassifier;
 import org.tensorflow.lite.examples.detection.tflite.TFLiteObjectDetectionAPIModel;
 import org.tensorflow.lite.examples.detection.tracking.MultiBoxTracker;
+import org.tensorflow.lite.examples.detection.utilities.RESTClient;
 
 /**
  * An activity that uses a TensorFlowMultiBoxDetector and ObjectTracker to detect and then track
@@ -189,6 +198,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                       TF_OD_API_LABELS_FILE,
                       TF_OD_API_INPUT_SIZE,
                       TF_OD_API_IS_QUANTIZED);
+      detector.load(readFromSP());
       //cropSize = TF_OD_API_INPUT_SIZE;
     } catch (final IOException e) {
       e.printStackTrace();
@@ -403,7 +413,8 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
           if (name.isEmpty()) {
               return;
           }
-          detector.register(name, rec);
+          HashMap<String, SimilarityClassifier.Recognition> recognitionHashMap = detector.register(name, rec);
+          insertToSP(recognitionHashMap, false);
           //knownFaces.put(name, rec);
           dlg.dismiss();
       }
@@ -582,7 +593,17 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
         result.setExtra(extra);
         result.setCrop(crop);
         mappedRecognitions.add(result);
+        LOGGER.d("current color "+color.toString());
+        LOGGER.d("current label "+label);
+        LOGGER.d("current confidence "+confidence);
+        if(confidence > 0.6) {
 
+          LOGGER.d("before calling welcome screen ");
+          Intent i = new Intent(DetectorActivity.this, WelcomeScreenActivity.class);
+          i.putExtra("user",label);
+          i.putExtra("confidence",confidence);
+          startActivity(i);
+        }
       }
 
 
@@ -597,5 +618,54 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
   }
 
+
+  //Save Faces to Shared Preferences.Conversion of Recognition objects to json string
+  private void insertToSP(HashMap<String, SimilarityClassifier.Recognition> jsonMap, boolean clear) {
+    if(clear)
+      jsonMap.clear();
+    else
+      jsonMap.putAll(readFromSP());
+    String jsonString = new Gson().toJson(jsonMap);
+//        for (Map.Entry<String, SimilarityClassifier.Recognition> entry : jsonMap.entrySet())
+//        {
+//            System.out.println("Entry Input "+entry.getKey()+" "+  entry.getValue().getExtra());
+//        }
+    SharedPreferences sharedPreferences = getSharedPreferences("HashMap", MODE_PRIVATE);
+    SharedPreferences.Editor editor = sharedPreferences.edit();
+    editor.putString("map", jsonString);
+    //System.out.println("Input josn"+jsonString.toString());
+    editor.apply();
+    //Toast.makeText(context, "Recognitions Saved", Toast.LENGTH_SHORT).show();
+  }
+
+  //Load Faces from Shared Preferences.Json String to Recognition object
+  private HashMap<String, SimilarityClassifier.Recognition> readFromSP(){
+    SharedPreferences sharedPreferences = getSharedPreferences("HashMap", MODE_PRIVATE);
+    String defValue = new Gson().toJson(new HashMap<String, SimilarityClassifier.Recognition>());
+    String json=sharedPreferences.getString("map",defValue);
+    // System.out.println("Output json"+json.toString());
+    TypeToken<HashMap<String,SimilarityClassifier.Recognition>> token = new TypeToken<HashMap<String,SimilarityClassifier.Recognition>>() {};
+    HashMap<String,SimilarityClassifier.Recognition> retrievedMap=new Gson().fromJson(json,token.getType());
+    // System.out.println("Output map"+retrievedMap.toString());
+
+    //During type conversion and save/load procedure,format changes(eg float converted to double).
+    //So embeddings need to be extracted from it in required format(eg.double to float).
+    for (Map.Entry<String, SimilarityClassifier.Recognition> entry : retrievedMap.entrySet())
+    {
+      float[][] output=new float[1][192];
+      ArrayList arrayList= (ArrayList) entry.getValue().getExtra();
+      arrayList = (ArrayList) arrayList.get(0);
+      for (int counter = 0; counter < arrayList.size(); counter++) {
+        output[0][counter]= ((Double) arrayList.get(counter)).floatValue();
+      }
+      entry.getValue().setExtra(output);
+
+      //System.out.println("Entry output "+entry.getKey()+" "+entry.getValue().getExtra() );
+
+    }
+//        System.out.println("OUTPUT"+ Arrays.deepToString(outut));
+    //Toast.makeText(context, "Recognitions Loaded", Toast.LENGTH_SHORT).show();
+    return retrievedMap;
+  }
 
 }

@@ -2,12 +2,12 @@ apply plugin: 'com.android.application'
 apply plugin: 'de.undercouch.download'
 
 android {
-    compileSdkVersion 28
-    buildToolsVersion '28.0.3'
+    compileSdkVersion 29
+    buildToolsVersion '29.0.3'
     defaultConfig {
         applicationId "org.tensorflow.lite.examples.facerecognition"
         minSdkVersion 21
-        targetSdkVersion 28
+        targetSdkVersion 29
         versionCode 1
         versionName "1.0"
     }
@@ -40,16 +40,19 @@ project.ext.TMP_DIR   = project.buildDir.toString() + '/downloads'
 //apply from:'download_model.gradle'
 
 dependencies {
+    implementation 'com.squareup.okhttp3:okhttp:3.10.0'
     implementation fileTree(dir: 'libs', include: ['*.jar','*.aar'])
-    implementation 'androidx.appcompat:appcompat:1.0.0'
+    implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'androidx.coordinatorlayout:coordinatorlayout:1.0.0'
+    implementation 'com.google.code.gson:gson:2.8.6'
     implementation 'com.google.android.material:material:1.0.0'
     implementation('org.tensorflow:tensorflow-lite:0.0.0-nightly') { changing = true }
+    implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     androidTestImplementation 'com.android.support.test:rules:1.0.2'
     androidTestImplementation 'com.google.truth:truth:1.0.1'
 
     // added MLKit dependencies for face detector
-    implementation 'com.google.mlkit:face-detection:16.0.0'
+    implementation 'com.google.mlkit:face-detection:16.0.7'
 
 }

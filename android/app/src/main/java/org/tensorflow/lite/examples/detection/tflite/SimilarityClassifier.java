@@ -17,12 +17,16 @@ package org.tensorflow.lite.examples.detection.tflite;
 
 import android.graphics.Bitmap;
 import android.graphics.RectF;
+
+import java.util.HashMap;
 import java.util.List;
 
 /** Generic interface for interacting with different recognition engines. */
 public interface SimilarityClassifier {
 
-  void register(String name, Recognition recognition);
+  HashMap<String, Recognition> register(String name, Recognition recognition);
+
+  void load(HashMap<String, Recognition> recognitionHashMap);
 
   List<Recognition> recognizeImage(Bitmap bitmap, boolean getExtra);
 
